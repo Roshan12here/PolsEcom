@@ -14,8 +14,9 @@ export const ourFileRouter = {
       const user = await getUser();
 
       // If you throw, the user will not be able to upload
-      if (!user || user.email !== "roshangamercs2tf3@gmail.com")
+      if (!user || (user.email !== "nazariitomei50@gmail.com" && user.email !== "roshangamercs2tf3@gmail.com")) {
         throw new UploadThingError("Unauthorized");
+      }
 
       // Whatever is returned here is accessible in onUploadComplete as `metadata`
       return { userId: user.id };
@@ -23,7 +24,6 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
       console.log("Upload complete for userId:", metadata.userId);
-
       console.log("file url", file.url);
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
@@ -37,8 +37,9 @@ export const ourFileRouter = {
       const user = await getUser();
 
       // If you throw, the user will not be able to upload
-      if (!user || user.email !== "roshangamercs2tf3@gmail.com")
+      if (!user || (user.email !== "nazariitomei50@gmail.com" && user.email !== "roshangamercs2tf3@gmail.com")) {
         throw new UploadThingError("Unauthorized");
+      }
 
       // Whatever is returned here is accessible in onUploadComplete as `metadata`
       return { userId: user.id };
@@ -46,7 +47,6 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
       console.log("Upload complete for userId:", metadata.userId);
-
       console.log("file url", file.url);
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
