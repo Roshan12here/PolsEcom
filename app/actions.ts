@@ -6,19 +6,16 @@ import { parseWithZod } from "@conform-to/zod";
 import { bannerSchema, productSchema } from "./lib/zodSchemas";
 import prisma from "./lib/db";
 import { redis } from "./lib/redis";
-import { Cart, CartItem } from "./lib/interfaces";
+import { Cart } from "./lib/interfaces";
 import { revalidatePath } from "next/cache";
 import { stripe } from "./lib/stripe";
 import Stripe from "stripe";
-
-// Ensures email checking is properly typed and consistent.
-const authorizedEmails = new Set(["roshangamercs2tf3@gmail.com", "nazariitomei50@gmail.com"]);
 
 export async function createProduct(prevState: unknown, formData: FormData) {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user || !authorizedEmails.has(user.email)) {
+  if (!user || (user.email !== "roshangamercs2tf3@gmail.com" && user.email !== "nazariitomei50@gmail.com")) {
     return redirect("/");
   }
 
@@ -30,7 +27,7 @@ export async function createProduct(prevState: unknown, formData: FormData) {
     return submission.reply();
   }
 
-  const flattenUrls = submission.value.images.flatMap((urlString: string) =>
+  const flattenUrls = submission.value.images.flatMap((urlString) =>
     urlString.split(",").map((url) => url.trim())
   );
 
@@ -42,7 +39,7 @@ export async function createProduct(prevState: unknown, formData: FormData) {
       price: submission.value.price,
       images: flattenUrls,
       category: submission.value.category,
-      isFeatured: !!submission.value.isFeatured,
+      isFeatured: submission.value.isFeatured === true ? true : false,
     },
   });
 
@@ -53,7 +50,7 @@ export async function editProduct(prevState: any, formData: FormData) {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user || !authorizedEmails.has(user.email)) {
+  if (!user || (user.email !== "roshangamercs2tf3@gmail.com" && user.email !== "nazariitomei50@gmail.com")) {
     return redirect("/");
   }
 
@@ -65,19 +62,21 @@ export async function editProduct(prevState: any, formData: FormData) {
     return submission.reply();
   }
 
-  const flattenUrls = submission.value.images.flatMap((urlString: string) =>
+  const flattenUrls = submission.value.images.flatMap((urlString) =>
     urlString.split(",").map((url) => url.trim())
   );
 
   const productId = formData.get("productId") as string;
   await prisma.product.update({
-    where: { id: productId },
+    where: {
+      id: productId,
+    },
     data: {
       name: submission.value.name,
       description: submission.value.description,
       category: submission.value.category,
       price: submission.value.price,
-      isFeatured: !!submission.value.isFeatured,
+      isFeatured: submission.value.isFeatured === true ? true : false,
       status: submission.value.status,
       images: flattenUrls,
     },
@@ -90,13 +89,14 @@ export async function deleteProduct(formData: FormData) {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user || !authorizedEmails.has(user.email)) {
+  if (!user || (user.email !== "roshangamercs2tf3@gmail.com" && user.email !== "nazariitomei50@gmail.com")) {
     return redirect("/");
   }
 
-  const productId = formData.get("productId") as string;
   await prisma.product.delete({
-    where: { id: productId },
+    where: {
+      id: formData.get("productId") as string,
+    },
   });
 
   redirect("/dashboard/products");
@@ -106,7 +106,7 @@ export async function createBanner(prevState: any, formData: FormData) {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user || !authorizedEmails.has(user.email)) {
+  if (!user || (user.email !== "roshangamercs2tf3@gmail.com" && user.email !== "nazariitomei50@gmail.com")) {
     return redirect("/");
   }
 
@@ -132,13 +132,14 @@ export async function deleteBanner(formData: FormData) {
   const { getUser } = getKindeServerSession();
   const user = await getUser();
 
-  if (!user || !authorizedEmails.has(user.email)) {
+  if (!user || (user.email !== "roshangamercs2tf3@gmail.com" && user.email !== "nazariitomei50@gmail.com")) {
     return redirect("/");
   }
 
-  const bannerId = formData.get("bannerId") as string;
   await prisma.banner.delete({
-    where: { id: bannerId },
+    where: {
+      id: formData.get("bannerId") as string,
+    },
   });
 
   redirect("/dashboard/banner");
@@ -152,15 +153,25 @@ export async function addItem(productId: string) {
     return redirect("/");
   }
 
-  let cart: Cart | null = await redis.get(`cart-${user.id}`);
+  let cart: Cart | null = await redis.get(cart-${user.id});
+
   const selectedProduct = await prisma.product.findUnique({
-    select: { id: true, name: true, price: true, images: true },
-    where: { id: productId },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      images: true,
+    },
+    where: {
+      id: productId,
+    },
   });
 
-  if (!selectedProduct) throw new Error("No product with this id");
+  if (!selectedProduct) {
+    throw new Error("No product with this id");
+  }
+  let myCart = {} as Cart;
 
-  let myCart: Cart;
   if (!cart || !cart.items) {
     myCart = {
       userId: user.id,
@@ -176,14 +187,16 @@ export async function addItem(productId: string) {
     };
   } else {
     let itemFound = false;
-    myCart = { ...cart };
+
     myCart.items = cart.items.map((item) => {
       if (item.id === productId) {
         itemFound = true;
-        return { ...item, quantity: item.quantity + 1 };
+        item.quantity += 1;
       }
+
       return item;
     });
+
     if (!itemFound) {
       myCart.items.push({
         id: selectedProduct.id,
@@ -195,7 +208,8 @@ export async function addItem(productId: string) {
     }
   }
 
-  await redis.set(`cart-${user.id}`, myCart);
+  await redis.set(cart-${user.id}, myCart);
+
   revalidatePath("/", "layout");
 }
 
@@ -207,15 +221,17 @@ export async function delItem(formData: FormData) {
     return redirect("/");
   }
 
-  const productId = formData.get("productId") as string;
-  let cart: Cart | null = await redis.get(`cart-${user.id}`);
+  const productId = formData.get("productId");
 
-  if (cart?.items) {
+  let cart: Cart | null = await redis.get(cart-${user.id});
+
+  if (cart && cart.items) {
     const updateCart: Cart = {
       userId: user.id,
       items: cart.items.filter((item) => item.id !== productId),
     };
-    await redis.set(`cart-${user.id}`, updateCart);
+
+    await redis.set(cart-${user.id}, updateCart);
   }
 
   revalidatePath("/bag");
@@ -229,31 +245,36 @@ export async function checkOut() {
     return redirect("/");
   }
 
-  let cart: Cart | null = await redis.get(`cart-${user.id}`);
+  let cart: Cart | null = await redis.get(cart-${user.id});
 
   if (cart && cart.items) {
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map((item) => ({
-      price_data: {
-        currency: "usd",
-        unit_amount: item.price * 100,
-        product_data: {
-          name: item.name,
-          images: [item.imageString],
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] =
+      cart.items.map((item) => ({
+        price_data: {
+          currency: "usd",
+          unit_amount: item.price * 100,
+          product_data: {
+            name: item.name,
+            images: [item.imageString],
+          },
         },
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      }));
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
-      success_url: process.env.NODE_ENV === "development"
-        ? "http://localhost:3000/payment/success"
-        : "https://shoe-marshal.vercel.app/payment/success",
-      cancel_url: process.env.NODE_ENV === "development"
-        ? "http://localhost:3000/payment/cancel"
-        : "https://shoe-marshal.vercel.app/payment/cancel",
-      metadata: { userId: user.id },
+      success_url:
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:3000/payment/success"
+          : "https://shoe-marshal.vercel.app/payment/success",
+      cancel_url:
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:3000/payment/cancel"
+          : "https://shoe-marshal.vercel.app/payment/cancel",
+      metadata: {
+        userId: user.id,
+      },
     });
 
     return redirect(session.url as string);
